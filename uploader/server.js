@@ -4,19 +4,23 @@ const fs = require('node:fs/promises')
 const server = net.createServer((socket) => {
 })
 
-let fileHandle, fileWriteStream
 server.on('connection', (socket) => {
     console.log('New connection')
+    let fileHandle, fileWriteStream
 
 
     socket.on('data', async data => {
         if(!fileHandle){
             socket.pause() // pause receiving data from the client, because during below promise executing we're receiving a log of packages from socket
-            fileHandle = await fs.open(`storage/test.txt`, 'w')
+
+            const indexOfDivider = data.indexOf("=>")
+            const fileName = data.subarray(10, indexOfDivider).toString('utf-8')
+            console.log(fileName)
+            fileHandle = await fs.open(`storage/${fileName}`, 'w')
             fileWriteStream = fileHandle.createWriteStream() // the stream to write to
 
             // writing to our destination
-            fileWriteStream.write(data)
+            fileWriteStream.write(data.subarray(indexOfDivider+2))
 
             socket.resume() // resume receiving data from the client
             fileWriteStream.on('drain', ()=>{
@@ -35,10 +39,10 @@ server.on('connection', (socket) => {
 
     // This end event happens when the client.js file ends the socket
     socket.on('end', () =>{
-        fileHandle.close()
+        if(fileHandle) fileHandle.close()
         fileHandle=undefined
         fileWriteStream=undefined
-        console.log(socket.readableEnded)
+        // console.log(socket.readableEnded)
         console.log('Connection ended')
     })
 })
